@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aadi Cyber Cafe ROH | Tech Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+:root{--primary:#2563eb;--dark:#0f172a;--light:#f1f5f9}
+*{box-sizing:border-box;font-family:Poppins,Arial}
+body{margin:0;background:var(--light);color:#0f172a}
+header{background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;padding:40px 20px;text-align:center}
+header h1{margin:0;font-size:32px;font-weight:700}
+nav{margin-top:20px}
+nav a{color:#fff;margin:0 12px;text-decoration:none;font-weight:500}
+section{padding:60px 20px;max-width:1100px;margin:auto}
+.card{background:#fff;padding:30px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);margin-bottom:40px}
+input,select,textarea{width:100%;padding:12px;margin:8px 0 18px;border-radius:8px;border:1px solid #d1d5db}
+button{background:var(--primary);color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;margin:2px}
+button:hover{background:#1d4ed8}
+.delete-btn{background:#dc2626}
+.delete-btn:hover{background:#b91c1c}
+.reject-btn{background:#f59e0b}
+.reject-btn:hover{background:#d97706}
+.admin-table{width:100%;border-collapse:collapse;margin-top:20px}
+.admin-table th,.admin-table td{padding:12px;border-bottom:1px solid #e5e7eb;text-align:left;font-size:14px}
+.admin-table th{background:#f8fafc}
+.status-badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.pending{background:#fef3c7;color:#92400e}
+.processing{background:#dbeafe;color:#1e40af}
+.completed{background:#dcfce7;color:#166534}
+.rejected{background:#fee2e2;color:#7f1d1d}
+.hidden{display:none}
+footer{background:#0f172a;color:#fff;text-align:center;padding:20px}
+</style>
+</head>
+<body>
+
+<header>
+<h1>Aadi Cyber Cafe ROH</h1>
+<p>Professional Digital Service Center & Tech Hub</p>
+<nav>
+<a href="#booking">Book</a>
+<a href="#track">Track</a>
+<a href="#admin">Admin</a>
+</nav>
+</header>
+
+<section id="booking">
+<div class="card">
+<h2>Book a Service</h2>
+<form id="bookingForm">
+<input id="fullName" placeholder="Full Name" required>
+<input id="phone" placeholder="Phone Number" required>
+<select id="service">
+<option>Online Form Filling</option>
+<option>Printing / Xerox</option>
+<option>PAN / Aadhaar</option>
+<option>Ticket Booking</option>
+<option>Recharge / Bill Payment</option>
+<option>Sign Up / Registration</option>
+<option>Exam / Job Form</option>
+<option>Photo / Scan</option>
+<option>Other Work</option>
+</select>
+<textarea id="details" placeholder="Work Details"></textarea>
+<button type="submit">Submit Booking</button>
+</form>
+<div id="ticketResult"></div>
+<div id="ticketQR" style="margin-top:20px"></div>
+</div>
+</section>
+
+<section id="track">
+<div class="card">
+<h2>Track Your Ticket</h2>
+<input id="trackId" placeholder="Ticket ID">
+<input id="trackPass" placeholder="Passcode">
+<button id="trackBtn">Track</button>
+<div id="trackStatus" style="margin-top:15px;font-weight:600"></div>
+</div>
+</section>
+
+<section id="admin">
+<div class="card" id="adminLoginCard">
+<h2>Admin Login</h2>
+<input id="adminMobile" placeholder="Mobile">
+<input id="adminPassword" type="password" placeholder="Password">
+<button id="adminLoginBtn">Login</button>
+<div id="adminMsg"></div>
+</div>
+
+<div class="card hidden" id="adminPanel">
+<h2>Admin Dashboard</h2>
+<table class="admin-table">
+<thead>
+<tr>
+<th>Ticket</th>
+<th>Name</th>
+<th>Phone</th>
+<th>Service</th>
+<th>Status</th>
+<th>Action</th>
+<th>Delete</th>
+</tr>
+</thead>
+<tbody id="adminData"></tbody>
+</table>
+</div>
+</section>
+
+<footer>
+© 2026 Aadi Cyber Cafe ROH | All Rights Reserved
+</footer>
+
+<script>
+const firebaseConfig={
+apiKey:"AIzaSyCkhpRoPhqvjHNyI8aCsQ_OEpBmwCYPIGU",
+authDomain:"online-server-cafe-roh.firebaseapp.com",
+databaseURL:"https://online-server-cafe-roh-default-rtdb.asia-southeast1.firebasedatabase.app",
+projectId:"online-server-cafe-roh",
+storageBucket:"online-server-cafe-roh.firebasestorage.app",
+messagingSenderId:"818872973008",
+appId:"1:818872973008:web:f8102d4fb3de82e0fa10d5"
+};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+
+window.addEventListener("DOMContentLoaded",()=>{
+
+function genTicket(){return"AADI-"+Math.floor(100000+Math.random()*900000)}
+function genPass(){return Math.floor(100000+Math.random()*900000).toString()}
+
+bookingForm.addEventListener("submit",async e=>{
+e.preventDefault();
+const id=genTicket();
+const pass=genPass();
+const booking={id,pass,name:fullName.value,phone:phone.value,service:service.value,details:details.value,status:"Pending"};
+await db.ref("bookings/"+id).set(booking);
+ticketResult.innerHTML=`<b>Ticket:</b> ${id}<br><b>Passcode:</b> ${pass}`;
+document.getElementById("ticketQR").innerHTML="";
+new QRCode(document.getElementById("ticketQR"),location.origin+location.pathname+`?id=${id}&pass=${pass}`);
+bookingForm.reset();
+});
+
+trackBtn.onclick=async()=>{
+const snap=await db.ref("bookings/"+trackId.value).get();
+if(!snap.exists()){trackStatus.innerHTML="Ticket Not Found";return}
+const data=snap.val();
+trackStatus.innerHTML=data.pass===trackPass.value?`Status: ${data.status}`:"Wrong Passcode";
+};
+
+adminLoginBtn.onclick=()=>{
+if(adminMobile.value==="9508903619"&&adminPassword.value==="8969276441"){
+adminLoginCard.classList.add("hidden");
+adminPanel.classList.remove("hidden");
+loadAdmin();
+}else adminMsg.innerHTML="Wrong Login";
+};
+
+function badge(status){
+if(status==='Pending')return'<span class="status-badge pending">Pending</span>';
+if(status==='Processing')return'<span class="status-badge processing">Processing</span>';
+if(status==='Completed')return'<span class="status-badge completed">Completed</span>';
+return'<span class="status-badge rejected">Rejected</span>';
+}
+
+function loadAdmin(){
+db.ref("bookings").on("value",snap=>{
+adminData.innerHTML="";
+snap.forEach(child=>{
+const b=child.val();
+adminData.innerHTML+=`<tr>
+<td>${b.id}</td>
+<td>${b.name}</td>
+<td>${b.phone}</td>
+<td>${b.service}</td>
+<td>${badge(b.status)}</td>
+<td>
+<button onclick="updateStatus('${b.id}','Pending')">Pending</button>
+<button onclick="updateStatus('${b.id}','Processing')">Processing</button>
+<button onclick="updateStatus('${b.id}','Completed')">Completed</button>
+<button class="reject-btn" onclick="updateStatus('${b.id}','Rejected')">Reject</button>
+</td>
+<td><button class="delete-btn" onclick="deleteBooking('${b.id}')">Delete</button></td>
+</tr>`;
+});
+});
+}
+
+window.updateStatus=function(id,status){
+db.ref("bookings/"+id+"/status").set(status);
+}
+
+window.deleteBooking=function(id){
+if(confirm("Delete this ticket permanently?")){
+db.ref("bookings/"+id).remove();
+}
+}
+
+});
+</script>
+
+</body>
+</html>
